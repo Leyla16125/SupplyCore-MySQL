@@ -93,3 +93,61 @@ CREATE TABLE purchase_order_item (
     FOREIGN KEY (variant_id)
         REFERENCES product_variant(variant_id)
 );
+-- Customers and sales
+
+CREATE TABLE customer (
+    customer_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(150) NOT NULL,
+    email VARCHAR(150) NOT NULL UNIQUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE sales_order (
+    sales_order_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    warehouse_id INT NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'DRAFT',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    confirmed_at DATETIME NULL,
+
+    FOREIGN KEY (customer_id)
+        REFERENCES customer(customer_id),
+
+    FOREIGN KEY (warehouse_id)
+        REFERENCES warehouse(warehouse_id)
+);
+
+CREATE TABLE sales_order_item (
+    sales_order_item_id INT AUTO_INCREMENT PRIMARY KEY,
+    sales_order_id INT NOT NULL,
+    variant_id INT NOT NULL,
+    quantity INT NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL,
+
+    FOREIGN KEY (sales_order_id)
+        REFERENCES sales_order(sales_order_id),
+
+    FOREIGN KEY (variant_id)
+        REFERENCES product_variant(variant_id),
+
+    UNIQUE (sales_order_id, variant_id)
+);
+
+-- Stock history
+
+CREATE TABLE stock_movement (
+    movement_id INT AUTO_INCREMENT PRIMARY KEY,
+    warehouse_id INT NOT NULL,
+    variant_id INT NOT NULL,
+    movement_type VARCHAR(30) NOT NULL,
+    quantity INT NOT NULL,
+    reference_type VARCHAR(30) NULL,
+    reference_id INT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (warehouse_id)
+        REFERENCES warehouse(warehouse_id),
+
+    FOREIGN KEY (variant_id)
+        REFERENCES product_variant(variant_id)
+);
