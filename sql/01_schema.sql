@@ -151,3 +151,46 @@ CREATE TABLE stock_movement (
     FOREIGN KEY (variant_id)
         REFERENCES product_variant(variant_id)
 );
+
+-- Warehouse transfers
+
+CREATE TABLE warehouse_transfer (
+    transfer_id INT AUTO_INCREMENT PRIMARY KEY,
+    from_warehouse_id INT NOT NULL,
+    to_warehouse_id INT NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'COMPLETED',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (from_warehouse_id)
+        REFERENCES warehouse(warehouse_id),
+
+    FOREIGN KEY (to_warehouse_id)
+        REFERENCES warehouse(warehouse_id)
+);
+
+-- Sales returns
+
+CREATE TABLE sales_return (
+    return_id INT AUTO_INCREMENT PRIMARY KEY,
+    sales_order_id INT NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'COMPLETED',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (sales_order_id)
+        REFERENCES sales_order(sales_order_id)
+);
+
+CREATE TABLE sales_return_item (
+    return_item_id INT AUTO_INCREMENT PRIMARY KEY,
+    return_id INT NOT NULL,
+    variant_id INT NOT NULL,
+    quantity INT NOT NULL,
+
+    FOREIGN KEY (return_id)
+        REFERENCES sales_return(return_id),
+
+    FOREIGN KEY (variant_id)
+        REFERENCES product_variant(variant_id),
+
+    UNIQUE (return_id, variant_id)
+);

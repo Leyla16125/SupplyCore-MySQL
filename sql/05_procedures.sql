@@ -188,7 +188,7 @@ BEGIN
         poi.quantity
     FROM purchase_order_item AS poi
     WHERE poi.purchase_order_id = p_purchase_order_id
-    
+
     ON DUPLICATE KEY UPDATE
         inventory.quantity = inventory.quantity + VALUES(quantity);
     -- Record movement
@@ -216,6 +216,137 @@ BEGIN
     UPDATE purchase_order
     SET status = 'RECEIVED'
     WHERE purchase_order_id = p_purchase_order_id;
+
+    COMMIT;
+END //
+
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS transfer_stock;
+
+DELIMITER //
+
+CREATE PROCEDURE transfer_stock (
+    IN p_from_warehouse_id INT,
+    IN p_to_warehouse_id INT,
+    IN p_variant_id INT,
+    IN p_quantity INT
+)
+BEGIN
+    DECLARE v_available_quantity INT DEFAULT NULL;
+    DECLARE v_transfer_id INT;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    -- Validate transfer
+
+    IF p_from_warehouse_id = p_to_warehouse_id THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Source and destination warehouses must be different';
+    END IF;
+
+    IF p_quantity <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Transfer quantity must be greater than zero';
+    END IF;
+
+    -- Lock source inventory
+
+    SELECT quantity
+    INTO v_available_quantity
+    FROM inventory
+    WHERE warehouse_id = p_from_warehouse_id
+      AND variant_id = p_variant_id
+    FOR UPDATE;
+
+    IF v_available_quantity IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Product not found in source warehouse';
+    END IF;
+
+    IF v_available_quantity < p_quantity THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Insufficient stock for transfer';
+    END IF;
+
+    -- Create transfer
+
+    INSERT INTO warehouse_transfer (
+        from_warehouse_id,
+        to_warehouse_id
+    )
+    VALUES (
+        p_from_warehouse_id,
+        p_to_warehouse_id
+    );
+
+    SET v_transfer_id = LAST_INSERT_ID();
+
+    -- Reduce source inventory
+
+    UPDATE inventory
+    SET quantity = quantity - p_quantity
+    WHERE warehouse_id = p_from_warehouse_id
+      AND variant_id = p_variant_id;
+
+    -- Increase destination inventory
+
+    INSERT INTO inventory (
+        warehouse_id,
+        variant_id,
+        quantity
+    )
+    VALUES (
+        p_to_warehouse_id,
+        p_variant_id,
+        p_quantity
+    )
+    ON DUPLICATE KEY UPDATE
+        inventory.quantity = inventory.quantity + VALUES(quantity);
+
+    -- Record transfer out
+
+    INSERT INTO stock_movement (
+        warehouse_id,
+        variant_id,
+        movement_type,
+        quantity,
+        reference_type,
+        reference_id
+    )
+    VALUES (
+        p_from_warehouse_id,
+        p_variant_id,
+        'TRANSFER_OUT',
+        p_quantity,
+        'WAREHOUSE_TRANSFER',
+        v_transfer_id
+    );
+
+    -- Record transfer in
+
+    INSERT INTO stock_movement (
+        warehouse_id,
+        variant_id,
+        movement_type,
+        quantity,
+        reference_type,
+        reference_id
+    )
+    VALUES (
+        p_to_warehouse_id,
+        p_variant_id,
+        'TRANSFER_IN',
+        p_quantity,
+        'WAREHOUSE_TRANSFER',
+        v_transfer_id
+    );
 
     COMMIT;
 END //
