@@ -33,6 +33,7 @@ JOIN product_model AS pm
     ON pm.model_id = pv.model_id
 WHERE so.status = 'CONFIRMED'
 GROUP BY
+    pv.variant_id,
     pm.name,
     pv.storage,
     pv.color,

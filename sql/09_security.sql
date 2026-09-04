@@ -7,18 +7,33 @@ CREATE ROLE IF NOT EXISTS
     'supplycore_app',
     'supplycore_analyst';
 
+
 -- Role privileges
 
 GRANT ALL PRIVILEGES
 ON supplycore.*
 TO 'supplycore_admin';
 
+
 GRANT SELECT
 ON supplycore.*
 TO 'supplycore_analyst';
 
-GRANT SELECT, INSERT, UPDATE
+
+GRANT SELECT
 ON supplycore.*
+TO 'supplycore_app';
+
+GRANT INSERT, UPDATE
+ON supplycore.customer
+TO 'supplycore_app';
+
+GRANT INSERT, UPDATE
+ON supplycore.sales_order
+TO 'supplycore_app';
+
+GRANT INSERT, UPDATE
+ON supplycore.sales_order_item
 TO 'supplycore_app';
 
 GRANT EXECUTE
@@ -37,6 +52,7 @@ GRANT EXECUTE
 ON PROCEDURE supplycore.return_sales_item
 TO 'supplycore_app';
 
+
 -- Users
 
 CREATE USER IF NOT EXISTS 'supplycore_admin_user'@'localhost'
@@ -48,6 +64,7 @@ IDENTIFIED BY 'App_2026!';
 CREATE USER IF NOT EXISTS 'supplycore_analyst_user'@'localhost'
 IDENTIFIED BY 'Analyst_2026!';
 
+
 -- Assign roles
 
 GRANT 'supplycore_admin'
@@ -58,6 +75,7 @@ TO 'supplycore_app_user'@'localhost';
 
 GRANT 'supplycore_analyst'
 TO 'supplycore_analyst_user'@'localhost';
+
 
 -- Default roles
 

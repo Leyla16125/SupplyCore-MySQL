@@ -5,12 +5,12 @@ USE supplycore;
 
 CREATE TABLE category (
     category_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL
+    name VARCHAR(100) NOT NULL UNIQUE
 );
 
 CREATE TABLE brand (
     brand_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL
+    name VARCHAR(100) NOT NULL UNIQUE
 );
 
 CREATE TABLE family (
@@ -19,8 +19,13 @@ CREATE TABLE family (
     category_id INT NOT NULL,
     brand_id INT NOT NULL,
 
-    FOREIGN KEY (category_id) REFERENCES category(category_id),
-    FOREIGN KEY (brand_id) REFERENCES brand(brand_id)
+    FOREIGN KEY (category_id)
+        REFERENCES category(category_id),
+
+    FOREIGN KEY (brand_id)
+        REFERENCES brand(brand_id),
+
+    UNIQUE (name, category_id, brand_id)
 );
 
 CREATE TABLE product_model (
@@ -28,7 +33,10 @@ CREATE TABLE product_model (
     name VARCHAR(150) NOT NULL,
     family_id INT NOT NULL,
 
-    FOREIGN KEY (family_id) REFERENCES family(family_id)
+    FOREIGN KEY (family_id)
+        REFERENCES family(family_id),
+
+    UNIQUE (name, family_id)
 );
 
 CREATE TABLE product_variant (
@@ -38,16 +46,18 @@ CREATE TABLE product_variant (
     color VARCHAR(50) NOT NULL,
     sku VARCHAR(100) NOT NULL UNIQUE,
 
-    FOREIGN KEY (model_id) REFERENCES product_model(model_id),
+    FOREIGN KEY (model_id)
+        REFERENCES product_model(model_id),
 
     UNIQUE (model_id, storage, color)
 );
+
 
 -- Warehouses and inventory
 
 CREATE TABLE warehouse (
     warehouse_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
+    name VARCHAR(100) NOT NULL UNIQUE,
     city VARCHAR(100) NOT NULL
 );
 
@@ -57,17 +67,21 @@ CREATE TABLE inventory (
     variant_id INT NOT NULL,
     quantity INT NOT NULL DEFAULT 0,
 
-    FOREIGN KEY (warehouse_id) REFERENCES warehouse(warehouse_id),
-    FOREIGN KEY (variant_id) REFERENCES product_variant(variant_id),
+    FOREIGN KEY (warehouse_id)
+        REFERENCES warehouse(warehouse_id),
+
+    FOREIGN KEY (variant_id)
+        REFERENCES product_variant(variant_id),
 
     UNIQUE (warehouse_id, variant_id)
 );
+
 
 -- Suppliers and purchasing
 
 CREATE TABLE supplier (
     supplier_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(150) NOT NULL,
+    name VARCHAR(150) NOT NULL UNIQUE,
     country VARCHAR(100) NOT NULL
 );
 
@@ -77,7 +91,8 @@ CREATE TABLE purchase_order (
     status VARCHAR(50) NOT NULL,
     order_date DATE NOT NULL,
 
-    FOREIGN KEY (supplier_id) REFERENCES supplier(supplier_id)
+    FOREIGN KEY (supplier_id)
+        REFERENCES supplier(supplier_id)
 );
 
 CREATE TABLE purchase_order_item (
@@ -93,6 +108,8 @@ CREATE TABLE purchase_order_item (
     FOREIGN KEY (variant_id)
         REFERENCES product_variant(variant_id)
 );
+
+
 -- Customers and sales
 
 CREATE TABLE customer (
@@ -133,6 +150,7 @@ CREATE TABLE sales_order_item (
     UNIQUE (sales_order_id, variant_id)
 );
 
+
 -- Stock history
 
 CREATE TABLE stock_movement (
@@ -152,6 +170,7 @@ CREATE TABLE stock_movement (
         REFERENCES product_variant(variant_id)
 );
 
+
 -- Warehouse transfers
 
 CREATE TABLE warehouse_transfer (
@@ -167,6 +186,7 @@ CREATE TABLE warehouse_transfer (
     FOREIGN KEY (to_warehouse_id)
         REFERENCES warehouse(warehouse_id)
 );
+
 
 -- Sales returns
 

@@ -121,4 +121,4 @@ SQL fayllarını aşağıdakı ardıcıllıqla run etmək lazımdır:
 
 ## Project Status
 
-Database implementation tamamlanıb. Final validation və documentation mərhələsi davam edir.
+Completed.
