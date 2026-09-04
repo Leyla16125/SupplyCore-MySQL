@@ -1,8 +1,8 @@
 # SupplyCore MySQL
 
-SupplyCore məhsulların, anbarların, stokun, təchizatçıların, satınalmaların, satışların, anbarlararası transferlərin və geri qaytarmaların idarə olunması üçün hazırlanmış MySQL verilənlər bazası layihəsidir.
+SupplyCore stok, satınalma və satış proseslərini bir verilənlər bazası daxilində idarə etmək üçün hazırladığım MySQL layihəsidir.
 
-Layihədə relational database dizaynı, data integrity, transaction-lar, business logic, reporting və query performance mövzularına fokuslanılıb.
+Layihəni qurarkən əsas diqqəti data consistency, stok dəyişikliklərinin təhlükəsiz aparılması və əsas business əməliyyatlarının database səviyyəsində idarə olunmasına vermişəm.
 
 ## Əsas imkanlar
 
@@ -10,67 +10,55 @@ Layihədə relational database dizaynı, data integrity, transaction-lar, busine
 - Bir neçə anbar üzrə inventory idarəetməsi
 - Təchizatçı və purchase order prosesi
 - Müştəri və sales order idarəetməsi
-- Transaction daxilində təhlükəsiz stok yenilənməsi
+- Sales return prosesi
 - Anbarlararası stok transferi
-- Satış geri qaytarmaları
 - Stock movement history
 - Reporting üçün VIEW-lar
 - Business analytics query-ləri
 - Query performansı üçün index-lər
 - Role-based database access
 
-## Database strukturu
-
-Verilənlər bazası əsasən aşağıdakı hissələrdən ibarətdir:
-
-- Məhsullar
-- Anbar və inventory
-- Təchizatçılar və satınalma
-- Müştərilər və satışlar
-- Satış geri qaytarmaları
-- Stock movement
-- Anbarlararası transferlər
-
 ## ER Diagram
 
 ![SupplyCore ER Diagram](docs/supplycore_erd.png)
 
-## SQL faylları
+## Database strukturu
 
-| Fayl | Təyinat |
-|------|---------|
-| `01_schema.sql` | Table-lar və əlaqələr |
-| `02_seed_data.sql` | İlkin nümunə data |
-| `03_business_rules.sql` | CHECK constraint-lər və business rules |
-| `04_views.sql` | Reporting və inventory VIEW-ları |
-| `05_procedures.sql` | Transactional business əməliyyatları |
-| `07_analytics.sql` | Business analytics query-ləri |
-| `08_indexes.sql` | Query performansı üçün index-lər |
-| `09_security.sql` | User, role və privilege-lər |
+Layihə əsasən aşağıdakı hissələrdən ibarətdir:
+
+- Product catalog
+- Warehouse və inventory
+- Suppliers və purchasing
+- Customers və sales
+- Sales returns
+- Warehouse transfers
+- Stock movement history
+
+## Əsas business qaydaları
+
+Stok yalnız təsdiqlənmiş əməliyyatlar zamanı dəyişir.
+
+- Sales order `DRAFT` vəziyyətində stokdan məhsul çıxılmır.
+- Order təsdiqlənərkən kifayət qədər stok olub-olmadığı yoxlanılır.
+- Purchase order qəbul ediləndə inventory artır.
+- Warehouse transfer zamanı stok bir anbardan azalır, digər anbarda artır.
+- Sales return zamanı əvvəlki qaytarmalar nəzərə alınır və satılmış quantity-dən artıq məhsul qaytarmaq mümkün deyil.
+- Bütün əsas stok dəyişiklikləri `stock_movement` table-ında qeyd olunur.
 
 ## Stored Procedures
 
-Layihədə əsas inventory prosesləri üçün aşağıdakı stored procedure-lər yaradılıb:
+Əsas əməliyyatlar stored procedure-lər vasitəsilə idarə olunur:
 
 - `confirm_sales_order`
 - `receive_purchase_order`
 - `transfer_stock`
 - `return_sales_item`
 
-## Inventory Flow
-
-Stok əsasən 4 əməliyyat nəticəsində dəyişir:
-
-1. Purchase order qəbul edilir → inventory artır
-2. Sales order təsdiqlənir → inventory azalır
-3. Warehouse transfer edilir → stok bir anbardan digərinə keçir
-4. Sales return tamamlanır → inventory artır
-
-Bu əməliyyatlar `stock_movement` table-ında qeyd olunur.
+Procedure-lərdə transaction, rollback və row locking istifadə olunur ki, stok dəyişiklikləri yarımçıq vəziyyətdə qalmasın.
 
 ## VIEW-lar
 
-Layihədə məlumatların daha rahat oxunması və reporting üçün aşağıdakı VIEW-lar yaradılıb:
+Reporting və məlumatların daha rahat oxunması üçün:
 
 - `inventory_overview`
 - `sales_order_summary`
@@ -78,24 +66,49 @@ Layihədə məlumatların daha rahat oxunması və reporting üçün aşağıdak
 
 ## Analytics
 
-`07_analytics.sql` faylında aşağıdakı business query-lər mövcuddur:
+`07_analytics.sql` faylında aşağıdakı query-lər var:
 
-- Aylıq satış gəliri
-- Ən çox satılan məhsullar
-- Brand üzrə satış nəticələri
-- Average Order Value
-- Warehouse stock distribution
-- Aylıq revenue growth
+- aylıq satış gəliri
+- ən çox satılan məhsullar
+- brand üzrə satış nəticələri
+- average order value
+- warehouse stock distribution
+- aylıq revenue growth
+
+Monthly revenue growth query-sində CTE və `LAG()` window function istifadə olunur.
+
+## Indexing
+
+Əlavə index-lər real query pattern-lərinə əsasən yaradılıb:
+
+- sales reporting üçün `(status, confirmed_at)`
+- stock movement lookup üçün `(reference_type, reference_id)`
+- məhsulun movement history-si üçün `(variant_id, created_at)`
+
+Primary key və UNIQUE constraint-lərin yaratdığı index-lər ayrıca təkrarlanmayıb.
 
 ## Security
 
-Database access role əsaslı qurulub:
+Database access 3 role ilə ayrılıb:
 
 - `supplycore_admin`
 - `supplycore_app`
 - `supplycore_analyst`
 
-Hər role yalnız lazım olan privilege-lərlə məhdudlaşdırılıb.
+Application role kritik inventory table-larını birbaşa dəyişmək əvəzinə əsas stok əməliyyatlarını stored procedure-lər vasitəsilə yerinə yetirir.
+
+## SQL faylları
+
+| Fayl | Təyinat |
+|------|---------|
+| `01_schema.sql` | Table-lar və əlaqələr |
+| `02_seed_data.sql` | İlkin nümunə data |
+| `03_business_rules.sql` | CHECK constraint-lər və business qaydaları |
+| `04_views.sql` | Reporting VIEW-ları |
+| `05_procedures.sql` | Əsas transaction və stok əməliyyatları |
+| `07_analytics.sql` | Analytics query-ləri |
+| `08_indexes.sql` | Query performansı üçün index-lər |
+| `09_security.sql` | Role və privilege-lər |
 
 ## Setup
 
@@ -109,16 +122,12 @@ SQL fayllarını aşağıdakı ardıcıllıqla run etmək lazımdır:
 6. `08_indexes.sql`
 7. `09_security.sql`
 
-`07_analytics.sql` reporting query-lərindən ibarətdir və database qurulduqdan sonra ayrıca run edilə bilər.
+`07_analytics.sql` database qurulduqdan sonra ayrıca run edilə bilər.
 
-## İstifadə olunan texnologiyalar
+## Texnologiyalar
 
 - MySQL 8
 - MySQL Workbench
 - SQL
 - Git
 - GitHub
-
-## Project Status
-
-Completed.
